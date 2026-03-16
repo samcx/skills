@@ -16,6 +16,13 @@ Install a skill using the [skills CLI](https://skills.sh):
 npx skills add samcx/skills --skill pr-ready -a claude-code
 ```
 
+## Agent Support
+
+| Agent | Status |
+|-------|--------|
+| Claude Code | Supported |
+| Other agents | Coming soon (Codex is next) |
+
 ## Prerequisites
 
 - [`gh` CLI](https://cli.github.com/) — authenticated with access to your GitHub org
