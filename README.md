@@ -14,16 +14,22 @@ Install a skill using the [skills CLI](https://skills.sh):
 
 ```sh
 npx skills add samcx/skills --skill pr-ready -a claude-code
+# or
+pnpx skills add samcx/skills --skill pr-ready -a claude-code
+# or
+bunx skills add samcx/skills --skill pr-ready -a claude-code
 ```
 
 ## Agent Support
 
+### pr-ready
+
 | Agent | Status |
 |-------|--------|
-| Claude Code | Supported |
-| Other agents | Coming soon (Codex is next) |
+| Claude Code | ✅ |
+| Codex CLI | 🔜 |
+| Other agents | ✖️ |
 
-## Prerequisites
-
+**Prerequisites:**
 - [`gh` CLI](https://cli.github.com/) — authenticated with access to your GitHub org
 - [Slack MCP tools](https://modelcontextprotocol.io/) — for posting to Slack threads
