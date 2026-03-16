@@ -45,7 +45,7 @@ gh api "orgs/<github_org>/teams/<github_team>/members" --paginate --jq '.[].logi
 ```
 
 5. Exclude the PR author from candidates.
-6. Prompt the user to choose 1+ reviewers (or `none`). If there are 4 or fewer candidates, use `AskUserQuestion` with multiSelect. Otherwise, list candidates in chat and ask the user to type their choices.
+6. Prompt the user to choose 1+ reviewers (or `none`). If there are more than 4 candidates, list ALL candidates in chat first, then use `AskUserQuestion` with multiSelect showing up to 4 options — the user can select "Other" to type a name not shown. If there are 4 or fewer, use `AskUserQuestion` with multiSelect directly.
 7. Add selected reviewers with `gh pr edit <number> --add-reviewer <login>`.
 8. **Resolve Slack user IDs** for each selected reviewer:
    1. Get their display name: `gh api users/<login> --jq '.name'`
