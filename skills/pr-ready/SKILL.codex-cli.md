@@ -117,11 +117,12 @@ Steps:
 6. Re-snapshot after each navigation step.
    - Treat `@e...` refs as unstable across snapshots, menus, dialogs, autocomplete popovers, and thread reloads. Reacquire refs after each UI-changing action instead of reusing old refs blindly.
 7. Find the daily thread starter whose visible text contains the configured `thread_match` value.
-8. Open the thread and inspect replies for `#<prNumber>:`. If any reply contains that marker, skip posting and report it was deduped.
-9. If no duplicate exists, verify the thread reply textbox is empty before drafting. If it is not empty, clear it and confirm the thread reply `Send now` button is disabled before continuing.
-10. Reply in the thread with the formatted message below.
-11. Treat the Slack reply composer as a Quill-style rich-text `contenteditable` editor with its own document model, not a plain textarea.
-12. Preferred composition flow:
+8. Open the thread and inspect replies for `#<prNumber>:`. Deduplicate only if the matching reply is clearly the current user's previously posted PR-ready reply for the current PR. Ignore unrelated replies, cross-posts, or other users' messages that happen to mention the same PR number.
+9. If no duplicate exists, verify the thread reply textbox is empty before drafting. If it is not empty, clear it and confirm the thread reply `Send now` button is disabled before continuing. Always compose a new reply from the thread textbox; do not start from editing an existing message.
+10. Resolve a stable thread-pane container for the open thread and scope all composer, send-button, and message-query actions to that container. After any UI-changing action, reacquire refs from that same container before continuing.
+11. Reply in the thread with the formatted message below.
+12. Treat the Slack reply composer as a Quill-style rich-text `contenteditable` editor with its own document model, not a plain textarea.
+13. Preferred composition flow:
     - First build the draft body using Slack's editor behavior, not raw DOM replacement.
     - Preferred implementation order for the first line:
       1. insert literal `:pr: `
@@ -135,23 +136,29 @@ Steps:
     - If reviewers were selected, leave the caret at the end of `cc `, then use the GitHub display name as the primary lookup text in Slack mention autocomplete.
     - If the intended reviewer appears in the picker, select that exact option. Do not fall back while a matching reviewer is visible.
     - Do not stop at visible `@name` text. Verify Slack shows the intended reviewer, select it explicitly, and confirm the draft DOM contains a real mention node for that reviewer before sending.
-13. Do not use multiline typing into the Slack rich-text composer. Do not build the full draft incrementally with newline typing.
-14. After mentions resolve, verify the draft DOM still shows:
+14. Do not use multiline typing into the Slack rich-text composer. Do not build the full draft incrementally with newline typing.
+15. After mentions resolve, verify the draft DOM still shows:
     - linked `#<number>`
     - `#<number>` inline with `:pr:` and the title on the same first paragraph, not split across separate paragraphs
     - unchanged title text with no Slack-created mention nodes inside the title
     - only the intended reviewer mentions as Slack mention nodes
     - no raw GitHub URL line unless you are intentionally using the emergency fallback
-15. If a reviewer mention does not resolve to a unique Slack mention after attempting Slack autocomplete, fall back to `<https://github.com/<login>|@<login>>` for that reviewer and continue.
-16. After sending, re-snapshot and verify the posted reply shows:
+16. If a reviewer mention does not resolve to a unique Slack mention after attempting Slack autocomplete, fall back to `<https://github.com/<login>|@<login>>` for that reviewer and continue.
+17. After sending, re-snapshot and verify the posted reply shows:
     - exactly one new reply for the PR
     - a linked `#<number>` node
     - a real line break between the PR line and the `cc` line when reviewers were included
     - Slack mention nodes for reviewers when reviewer mentions were intended
     - no raw GitHub URL line unless you intentionally used the emergency fallback
-17. After sending, also verify the thread reply textbox is empty and no lingering unsent draft remains, then save the session state to `/Users/samcx/.codex/memories/pr-ready-codex-slack-state.json` with `agent-browser --session pr-ready-codex state save /Users/samcx/.codex/memories/pr-ready-codex-slack-state.json`.
-18. If a partial message is posted accidentally, immediately edit or delete it, clear any remaining draft, and only then report success.
-19. If the daily thread is not found, stop and tell the user. Do not post a top-level channel message.
+18. Treat send verification as a hard gate. If you cannot identify exactly one newly posted reply authored by the current user for the current PR, stop. Do not edit or delete anything except a conclusively identified malformed reply that you just posted for this exact PR in this exact thread.
+19. After sending, also verify the thread reply textbox is empty and no lingering unsent draft remains, then save the session state to `/Users/samcx/.codex/memories/pr-ready-codex-slack-state.json` with `agent-browser --session pr-ready-codex state save /Users/samcx/.codex/memories/pr-ready-codex-slack-state.json`.
+20. If a partial message is posted accidentally, only edit or delete it if all of the following are true:
+    - it is in the current thread
+    - it is authored by the current user
+    - it contains the current `#<prNumber>:` marker
+    - it matches the just-posted malformed reply you are recovering
+   Otherwise stop, leave existing messages untouched, and report failure.
+21. If the daily thread is not found, stop and tell the user. Do not post a top-level channel message.
 
 ## Slack Composer Safety
 
@@ -163,11 +170,13 @@ Steps:
 - If the session is on `about:blank` or a Slack sign-in page and a saved state exists at `/Users/samcx/.codex/memories/pr-ready-codex-slack-state.json`, load that state and reopen `https://app.slack.com/client` before declaring the session unusable.
 - If the user needs to recover the session manually in a visible window, close the session, kill the daemon, and relaunch with `agent-browser --session pr-ready-codex --headed open https://app.slack.com/client`.
 - Before composing, verify the thread reply textbox is empty. If it is not, clear it first and confirm the thread reply `Send now` button is disabled before continuing.
+- Resolve the thread reply textbox, send button, and any message actions from the thread-pane container. Never click a global `Send now`, `More options`, or similarly labeled control when multiple matching controls are present.
+- Prefer posting one new reply from the thread composer. Do not use ArrowUp edit mode or edit-in-place flows for normal retries.
 - Compose the body in two phases:
   - draft the linked PR number and literal title via DOM/eval
   - resolve reviewer mentions afterward via Slack autocomplete
 - If you use `agent-browser eval`, use it only for narrowly-scoped editor interactions. Do not replace the entire draft DOM.
-- If Slack's toolbar link UI is flaky, prefer narrowly-scoped editor operations such as `createLink` or targeted `insertHTML` for the inline `#<number>` anchor rather than falling back immediately.
+- If Slack's toolbar link UI is flaky, prefer narrowly-scoped editor operations such as `createLink` or targeted `insertHTML` for the inline `#<number>` anchor rather than falling back immediately. If one inline-link attempt fails verification, stop retrying rich-link composition and use the emergency fallback or report failure.
 - Do not treat `agent-browser get text` as sufficient validation for this workflow. Visible text can hide bad internal formatting.
 - When the PR title contains `@`, `#`, or similar tokens, insert the title as literal text so Slack does not convert parts of the title into mentions or links.
 - Resolve reviewer mentions only after the PR-number link and literal title text are already in place.
@@ -189,8 +198,10 @@ Steps:
   - reviewer mentions rendered as Slack mention/link nodes with reviewer identity metadata when reviewer mentions were intended
   - no raw GitHub URL line unless you intentionally used the emergency fallback
 - Do not treat accessibility snapshots alone as the source of truth for line breaks after sending. Slack's accessibility tree can flatten visible text; use posted-message DOM inspection as the primary validation signal.
-- After sending, also verify the thread reply textbox is empty and there is no lingering unsent draft.
-- If a partial or malformed message is posted accidentally, immediately edit or delete it, clear any remaining draft, retry once with the safer composition strategy, and only then report success.
+- Treat hover-gated message menus as last-resort recovery tools. Do not open a message menu unless you have already identified the exact current-user PR reply node you intend to act on.
+- After sending, also verify the thread reply textbox is empty and there is no lingering unsent draft. If the composer is still populated after a send attempt, treat the send as failed and stop.
+- Do not edit or delete any message unless you have positively matched it as the current user's malformed reply for the current PR in the current thread.
+- If a partial or malformed message is posted accidentally, prefer the emergency fallback or a clean new retry from the reply textbox. Only use edit/delete recovery when the current-user identity and exact target message have been verified first.
 
 ## Posted Slack Format
 
@@ -225,4 +236,5 @@ cc @Reviewer One @Reviewer Two
 - If the user chooses `none`, skip adding reviewers and post without the `cc` line.
 - If the task is a rerun of `pr-ready`, do not silently reuse or silently clear reviewer intent. Ask again.
 - If Slack is unavailable, logged out, or the daily thread is not found, stop and tell the user instead of guessing.
+- If post-send verification fails, leave unrelated messages untouched, keep or clear only the current draft, and report the exact verification failure.
 - If the Slack post fails midway through browser automation, report the exact step that failed and do not claim success.
