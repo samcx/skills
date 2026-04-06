@@ -83,6 +83,7 @@ cc <@SLACK_USER_ID>, ...
 
 ## Important Behavior
 
+- You MUST use Slack MCP tools (`mcp__claude_ai_Slack__slack_*`) for all Slack interactions. NEVER fall back to browser automation, Claude in Chrome (`mcp__claude-in-chrome__*`), or the `slack` skill. If the Slack MCP tools are not available, stop and tell the user.
 - Do not rely on terminal `fzf` for agent-driven flows; always ask in chat first.
 - If user chooses `none`, skip adding reviewers and omit the cc line.
 - If the daily thread is not found, stop and tell the user.
