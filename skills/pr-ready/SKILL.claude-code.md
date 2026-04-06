@@ -29,10 +29,10 @@ Write the config file and continue with the workflow.
 ```json
 {
   "channel_id": "C08L8AXAE0M",
-  "thread_match": ":pr:s for the day",
   "github_org": "vercel",
   "github_team": "support-platform",
-  "linear_team": "VA"
+  "linear_team": "VA",
+  "thread_match": ":pr:s for the day"
 }
 ```
 
@@ -94,7 +94,7 @@ Steps:
 1. Use `mcp__claude_ai_Linear__save_issue` with:
    - `title`: The PR title from `gh pr view`
    - `team`: The `linear_team` value from config
-   - `assignee`: `"me"`
+   - `assignee`: `"me"` (Linear MCP resolves this to the authenticated user)
    - `state`: `"In Review"`
    - `priority`: `2` (High)
    - `description`: A brief description of the PR changes, derived from the PR title and context. Include a link to the PR.
